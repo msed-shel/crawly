@@ -1,0 +1,51 @@
+name: Radio 88.6 Monitor
+
+on:
+  schedule:
+    # Every 5 minutes (GitHub's minimum). Runs may be delayed under load.
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}   # lets you trigger a run manually from the Actions tab
+
+# Needed so the job can commit the updated state file back to the repo.
+permissions:
+  contents: write
+
+concurrency:
+  # Never let two runs overlap and race on notified.json.
+  group: radio-monitor
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run monitor
+        env:
+          # Set these as repo secrets to keep them out of the code (optional).
+          NTFY_URL: ${{ secrets.NTFY_URL }}
+          ARTIST_TO_WATCH: ${{ secrets.ARTIST_TO_WATCH }}
+        run: |
+          # Fall back to the script defaults if a secret isn't set.
+          [ -z "$NTFY_URL" ] && unset NTFY_URL
+          [ -z "$ARTIST_TO_WATCH" ] && unset ARTIST_TO_WATCH
+          python monitor.py
+
+      - name: Persist notified state
+        run: |
+          if [ -n "$(git status --porcelain notified.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add notified.json
+            git commit -m "Update notified state [skip ci]"
+            git push
+          else
+            echo "No state change to commit."
+          fi
