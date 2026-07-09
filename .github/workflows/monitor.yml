@@ -1,42 +1,38 @@
 name: Radio 88.6 Monitor
 
 on:
+  workflow_dispatch: {}   # triggered by the external cron pinger (cron-job.org)
+  # Kept as a fallback; the pinger drives the real cadence.
   schedule:
-    # Every 5 minutes (GitHub's minimum). Runs may be delayed under load.
-    - cron: "*/5 * * * *"
-  workflow_dispatch: {}   # lets you trigger a run manually from the Actions tab
+    - cron: "*/15 * * * *"
 
-# Needed so the job can commit the updated state file back to the repo.
 permissions:
   contents: write
 
 concurrency:
-  # Never let two runs overlap and race on notified.json.
+  # If a new run starts while one is still going, drop the stale one instead of
+  # queueing behind it — prevents a backlog when runs are frequent.
   group: radio-monitor
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 4        # hard cap so a run can never hang indefinitely
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
+      # No setup-python: ubuntu-latest already has python3, and monitor.py
+      # uses only the standard library, so there's nothing to install.
       - name: Run monitor
         env:
-          # Set these as repo secrets to keep them out of the code (optional).
           NTFY_URL: ${{ secrets.NTFY_URL }}
           ARTIST_TO_WATCH: ${{ secrets.ARTIST_TO_WATCH }}
         run: |
-          # Fall back to the script defaults if a secret isn't set.
           [ -z "$NTFY_URL" ] && unset NTFY_URL
           [ -z "$ARTIST_TO_WATCH" ] && unset ARTIST_TO_WATCH
-          python monitor.py
+          python3 monitor.py
 
       - name: Persist notified state
         run: |
@@ -45,7 +41,9 @@ jobs:
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add notified.json
             git commit -m "Update notified state [skip ci]"
-            git push
+            # Rebase on any state another run may have pushed, then push.
+            git pull --rebase --autostash origin main || true
+            git push || echo "Push skipped (another run won the race)."
           else
             echo "No state change to commit."
           fi
