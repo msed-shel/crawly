@@ -14,6 +14,7 @@ import os
 import sys
 import urllib.request
 import urllib.error
+from datetime import datetime, timezone
 from pathlib import Path
 
 # --- Config (override via env / GitHub secrets) ---------------------------
@@ -22,8 +23,29 @@ NTFY_URL = os.environ.get("NTFY_URL", "https://ntfy.sh/radio-alerts-886-embersco
 ARTIST_TO_WATCH = os.environ.get("ARTIST_TO_WATCH", "EMBERS COLLIDE").upper()
 
 STATE_FILE = Path(__file__).parent / "notified.json"
-MAX_REMEMBERED = 200  # prune old IDs so the state file doesn't grow forever
+LOG_FILE = Path(__file__).parent / "events.log"
+MAX_REMEMBERED = 200   # prune old IDs so the state file doesn't grow forever
+MAX_LOG_LINES = 2000   # keep the log bounded
 TIMEOUT = 20
+# When on, log a summary line for EVERY run (upcoming count + whether the
+# watched artist was in the feed). Off by default so the committed log only
+# changes when something noteworthy happens. Set env MONITOR_VERBOSE=1 to debug
+# a suspected detection miss.
+VERBOSE = os.environ.get("MONITOR_VERBOSE", "").lower() in ("1", "true", "yes")
+
+
+def log_event(event, **fields):
+    """Append one JSON-line event (with a UTC timestamp) to events.log."""
+    entry = {"ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+             "event": event, **fields}
+    line = json.dumps(entry, ensure_ascii=False)
+    print("LOG " + line)
+    try:
+        lines = LOG_FILE.read_text().splitlines() if LOG_FILE.exists() else []
+    except OSError:
+        lines = []
+    lines.append(line)
+    LOG_FILE.write_text("\n".join(lines[-MAX_LOG_LINES:]) + "\n")
 
 
 def load_state():
@@ -122,7 +144,8 @@ def main():
     try:
         data = fetch_json(API_URL)
     except (urllib.error.URLError, TimeoutError) as e:
-        print(f"Error fetching API: {e}")
+        # Log the failure so a miss can be traced to the fetch, not ntfy.
+        log_event("fetch_error", error=str(e))
         # Don't fail the workflow on a transient network hiccup.
         return 0
 
@@ -132,6 +155,11 @@ def main():
         s for s in songs
         if s.get("played") is False and s.get("is_playing") is False
     ]
+
+    if VERBOSE:
+        present = any(ARTIST_TO_WATCH in (s.get("name") or "").upper()
+                      for s in upcoming)
+        log_event("run", upcoming=len(upcoming), watched_present=present)
 
     new_alerts = 0
     for song in upcoming:
@@ -153,12 +181,20 @@ def main():
         if details:
             message += "\n\n" + details
         print(message)
+
+        # Record detection FIRST — this is the "the crawler saw it" marker.
+        log_event("match", id=song_id, artist=song.get("name"),
+                  title=song.get("title"),
+                  scheduled_time=song.get("scheduled_time"))
         try:
             send_ntfy(message)
             notified.add(song_id)
             new_alerts += 1
+            # "the push went out" marker — its absence after a match = ntfy issue.
+            log_event("notified", id=song_id, title=song.get("title"))
         except (urllib.error.URLError, TimeoutError) as e:
-            print(f"Error sending ntfy: {e}")
+            # Not added to notified, so the next run will retry the alert.
+            log_event("ntfy_error", id=song_id, error=str(e))
 
     if new_alerts == 0:
         print(f"No new upcoming {ARTIST_TO_WATCH} tracks found.")
