@@ -34,16 +34,16 @@ jobs:
           [ -z "$ARTIST_TO_WATCH" ] && unset ARTIST_TO_WATCH
           python3 monitor.py
 
-      - name: Persist notified state
+      - name: Persist state and log
         run: |
-          if [ -n "$(git status --porcelain notified.json)" ]; then
+          if [ -n "$(git status --porcelain notified.json events.log)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add notified.json
-            git commit -m "Update notified state [skip ci]"
-            # Rebase on any state another run may have pushed, then push.
+            git add notified.json events.log
+            git commit -m "Update state/log [skip ci]"
+            # Rebase on anything another run may have pushed, then push.
             git pull --rebase --autostash origin main || true
             git push || echo "Push skipped (another run won the race)."
           else
-            echo "No state change to commit."
+            echo "No state or log change to commit."
           fi
