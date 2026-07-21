@@ -45,6 +45,60 @@ def fetch_json(url):
         return json.loads(resp.read().decode("utf-8"))
 
 
+def format_details(song):
+    """Pull album/artist/fun-fact info out of prefetchedMetainfos, if present.
+
+    Not every track carries this (lesser-known artists often don't), so every
+    lookup is defensive and the function returns "" when there's nothing to add.
+    """
+    meta = song.get("prefetchedMetainfos")
+    if not isinstance(meta, dict):
+        return ""
+
+    lines = []
+
+    # Album / release
+    songinfo = meta.get("song") or {}
+    release = songinfo.get("release")
+    if release:
+        rel = f"Album: {release}"
+        if songinfo.get("release_date"):
+            rel += f" ({songinfo['release_date']})"
+        lines.append(rel)
+
+    # Main artist bio + a link if available
+    artists = meta.get("artists") or []
+    main = next((a for a in artists if isinstance(a, dict)
+                 and a.get("relationship") == "main"), None)
+    if main is None and artists and isinstance(artists[0], dict):
+        main = artists[0]
+    if isinstance(main, dict):
+        bits = []
+        if main.get("begin"):
+            bits.append(f"since {main['begin']}")
+        if main.get("country"):
+            bits.append(main["country"])
+        if bits:
+            lines.append(f"About: {', '.join(bits)}")
+        if main.get("web"):
+            lines.append(f"Web: {main['web']}")
+
+    # Fun facts — the API pre-flattens these into one list, but with duplicates.
+    seen, facts = set(), []
+    for f in (meta.get("funfacts") or []):
+        if isinstance(f, str):
+            t = f.strip()
+            if t and t not in seen:
+                seen.add(t)
+                facts.append(t)
+    if facts:
+        lines.append("")
+        lines.append("Fun facts:")
+        lines.extend(f"• {t}" for t in facts)
+
+    return "\n".join(lines)
+
+
 def send_ntfy(message):
     data = message.encode("utf-8")
     req = urllib.request.Request(
@@ -95,6 +149,9 @@ def main():
             f"Song: {song.get('title', '?')}\n"
             f"Artist: {song.get('name', '?')}"
         )
+        details = format_details(song)
+        if details:
+            message += "\n\n" + details
         print(message)
         try:
             send_ntfy(message)
