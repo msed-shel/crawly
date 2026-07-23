@@ -25,7 +25,7 @@ from pathlib import Path
 # (or set the NTFY_URL / ARTIST_TO_WATCH repo secrets, which override these).
 API_URL = os.environ.get("API_URL", "https://meta.radio886.at/886/0")
 NTFY_URL = os.environ.get("NTFY_URL", "https://ntfy.sh/radio_886_test")
-ARTIST_TO_WATCH = os.environ.get("ARTIST_TO_WATCH", "Pink Floyd").upper()
+ARTIST_TO_WATCH = os.environ.get("ARTIST_TO_WATCH", "PINK_FLOYD").upper()
 
 STATE_FILE = Path(__file__).parent / "notified.json"
 LOG_FILE = Path(__file__).parent / "events.log"
