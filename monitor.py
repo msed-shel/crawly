@@ -18,9 +18,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # --- Config (override via env / GitHub secrets) ---------------------------
+# NOTE: TEST configuration — Fall Out Boy (a frequently-played band) and the
+# test ntfy channel. To go back to real monitoring, restore:
+#   NTFY_URL default -> "https://ntfy.sh/radio-alerts-886-emberscollide"
+#   ARTIST_TO_WATCH default -> "EMBERS COLLIDE"
+# (or set the NTFY_URL / ARTIST_TO_WATCH repo secrets, which override these).
 API_URL = os.environ.get("API_URL", "https://meta.radio886.at/886/0")
 NTFY_URL = os.environ.get("NTFY_URL", "https://ntfy.sh/radio_886_test")
-ARTIST_TO_WATCH = os.environ.get("ARTIST_TO_WATCH", "PINK FLOYD").upper()
+ARTIST_TO_WATCH = os.environ.get("ARTIST_TO_WATCH", "REV THEORY").upper()
 
 STATE_FILE = Path(__file__).parent / "notified.json"
 LOG_FILE = Path(__file__).parent / "events.log"
@@ -150,19 +155,20 @@ def main():
         return 0
 
     songs = data.get("data", [])
-    # "Upcoming" = queued but not yet played and not currently playing.
-    upcoming = [
-        s for s in songs
-        if s.get("played") is False and s.get("is_playing") is False
-    ]
+    # The feed is a short rolling window: a few recently-played tracks, the one
+    # currently playing, and a couple of upcoming ones. Matching only "upcoming"
+    # is fragile — a track can slip from upcoming past playing to played between
+    # two polls and never be seen in that single state. So we scan the WHOLE
+    # window and dedup by song id; this also catches a track first seen while it
+    # is playing or just after it played.
 
     if VERBOSE:
         present = any(ARTIST_TO_WATCH in (s.get("name") or "").upper()
-                      for s in upcoming)
-        log_event("run", upcoming=len(upcoming), watched_present=present)
+                      for s in songs)
+        log_event("run", feed=len(songs), watched_present=present)
 
     new_alerts = 0
-    for song in upcoming:
+    for song in songs:
         artist = (song.get("name") or "").upper()
         if ARTIST_TO_WATCH not in artist:
             continue
@@ -171,8 +177,15 @@ def main():
         if song_id in notified:
             continue
 
+        if song.get("is_playing"):
+            status = "is playing now"
+        elif song.get("played"):
+            status = "was just played"
+        else:
+            status = "is coming up"
+
         message = (
-            f"{ARTIST_TO_WATCH.title()} is coming up!\n\n"
+            f"{ARTIST_TO_WATCH.title()} {status}!\n\n"
             f"Time: {song.get('scheduled_time', '?')}\n"
             f"Song: {song.get('title', '?')}\n"
             f"Artist: {song.get('name', '?')}"
