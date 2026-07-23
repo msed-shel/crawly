@@ -20,7 +20,7 @@ from pathlib import Path
 # --- Config (override via env / GitHub secrets) ---------------------------
 API_URL = os.environ.get("API_URL", "https://meta.radio886.at/886/0")
 NTFY_URL = os.environ.get("NTFY_URL", "https://ntfy.sh/radio_886_test")
-ARTIST_TO_WATCH = os.environ.get("ARTIST_TO_WATCH", "FALL OUT BOY").upper()
+ARTIST_TO_WATCH = os.environ.get("ARTIST_TO_WATCH", "PINK FLOYD").upper()
 
 STATE_FILE = Path(__file__).parent / "notified.json"
 LOG_FILE = Path(__file__).parent / "events.log"
