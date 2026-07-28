@@ -51,6 +51,12 @@ TIMEOUT = 20
 # a suspected detection miss.
 VERBOSE = os.environ.get("MONITOR_VERBOSE", "").lower() in ("1", "true", "yes")
 
+# Feed logging: ON by default. To turn it off without editing this file, set the
+# env var / repo variable MONITOR_FEED_LOG to 0 (or false/no/off). To disable it
+# permanently in code, change the default below from "1" to "0".
+FEED_LOG_ENABLED = os.environ.get("MONITOR_FEED_LOG", "1").lower() \
+    not in ("0", "false", "no", "off")
+
 
 def log_event(event, **fields):
     """Append one JSON-line event (with a UTC timestamp) to events.log."""
@@ -207,7 +213,8 @@ def main():
     songs = data.get("data", [])
 
     # Diagnostic: log every track the feed shows (deduped by id).
-    feed_seen = append_feed_log(songs, feed_seen)
+    if FEED_LOG_ENABLED:
+        feed_seen = append_feed_log(songs, feed_seen)
 
     # The feed is a short rolling window: a few recently-played tracks, the one
     # currently playing, and a couple of upcoming ones. Matching only "upcoming"
