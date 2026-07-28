@@ -5,3 +5,4 @@
 {"ts": "2026-07-23T22:16:04Z", "event": "match", "id": "1042", "artist": "BON JOVI", "title": "KEEP THE FAITH", "scheduled_time": "00:03:55"}
 {"ts": "2026-07-23T22:16:05Z", "event": "notified", "id": "1042", "title": "KEEP THE FAITH"}
 {"ts": "2026-07-28T23:36:12Z", "event": "fetch_error", "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1000)>"}
+{"ts": "2026-07-28T23:39:10Z", "event": "fetch_error", "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1000)>"}
