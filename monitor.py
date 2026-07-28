@@ -18,19 +18,32 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # --- Config (override via env / GitHub secrets) ---------------------------
-# NOTE: TEST configuration — Fall Out Boy (a frequently-played band) and the
-# test ntfy channel. To go back to real monitoring, restore:
-#   NTFY_URL default -> "https://ntfy.sh/radio-alerts-886-emberscollide"
-#   ARTIST_TO_WATCH default -> "EMBERS COLLIDE"
-# (or set the NTFY_URL / ARTIST_TO_WATCH repo secrets, which override these).
+# While debugging Embers Collide, alerts go to the TEST channel. Switch NTFY_URL
+# back to "https://ntfy.sh/radio-alerts-886-emberscollide" once it's confirmed
+# working (or set the NTFY_URL / ARTIST_TO_WATCH repo secrets, which override).
 API_URL = os.environ.get("API_URL", "https://meta.radio886.at/886/0")
-NTFY_URL = os.environ.get("NTFY_URL", "https://ntfy.sh/radio-alerts-886-emberscollide")
+NTFY_URL = os.environ.get("NTFY_URL", "https://ntfy.sh/radio_886_test")
 ARTIST_TO_WATCH = os.environ.get("ARTIST_TO_WATCH", "EMBERS COLLIDE").upper()
+
+
+def norm_name(s):
+    """Normalize an artist name for matching: uppercase, letters+digits only.
+
+    This makes matching insensitive to spaces and punctuation, so a watch value
+    of "EMBERS COLLIDE" also matches a feed name like "EMBERSCOLLIDE".
+    """
+    return "".join(c for c in (s or "").upper() if c.isalnum())
+
+
+WATCH_NORM = norm_name(ARTIST_TO_WATCH)
 
 STATE_FILE = Path(__file__).parent / "notified.json"
 LOG_FILE = Path(__file__).parent / "events.log"
-MAX_REMEMBERED = 200   # prune old IDs so the state file doesn't grow forever
-MAX_LOG_LINES = 2000   # keep the log bounded
+FEED_LOG = Path(__file__).parent / "feed.log"
+MAX_REMEMBERED = 200    # prune old alert IDs so the state file doesn't grow forever
+MAX_LOG_LINES = 2000    # keep events.log bounded
+MAX_FEED_LINES = 5000   # keep feed.log bounded
+MAX_FEED_SEEN = 800     # how many track IDs to remember for feed-log dedup
 TIMEOUT = 20
 # When on, log a summary line for EVERY run (upcoming count + whether the
 # watched artist was in the feed). Off by default so the committed log only
@@ -51,6 +64,42 @@ def log_event(event, **fields):
         lines = []
     lines.append(line)
     LOG_FILE.write_text("\n".join(lines[-MAX_LOG_LINES:]) + "\n")
+
+
+def append_feed_log(songs, feed_seen):
+    """Record every not-yet-seen track (any state) to feed.log for diagnostics.
+
+    Deduped by song id so the feed's repetition across polls doesn't bloat the
+    file — each track is logged once, when first seen. This is what lets you
+    confirm whether/how a band (e.g. Embers Collide) ever appears in the feed.
+    """
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    new_lines = []
+    for s in songs:
+        sid = str(s.get("id"))
+        if sid in feed_seen:
+            continue
+        feed_seen.add(sid)
+        if s.get("is_playing"):
+            state = "playing"
+        elif s.get("played"):
+            state = "played"
+        else:
+            state = "upcoming"
+        new_lines.append(
+            f"{now} | {s.get('scheduled_time', '?')} | {state:8} | "
+            f"{s.get('name') or '?'} - {s.get('title') or '?'} | id={sid}"
+        )
+    if new_lines:
+        try:
+            existing = FEED_LOG.read_text().splitlines() if FEED_LOG.exists() else []
+        except OSError:
+            existing = []
+        existing.extend(new_lines)
+        FEED_LOG.write_text("\n".join(existing[-MAX_FEED_LINES:]) + "\n")
+        for line in new_lines:
+            print("FEED " + line)
+    return feed_seen
 
 
 def load_state():
@@ -145,6 +194,7 @@ def send_ntfy(message):
 def main():
     state = load_state()
     notified = set(state.get("notified_ids", []))
+    feed_seen = set(state.get("feed_seen_ids", []))
 
     try:
         data = fetch_json(API_URL)
@@ -155,6 +205,10 @@ def main():
         return 0
 
     songs = data.get("data", [])
+
+    # Diagnostic: log every track the feed shows (deduped by id).
+    feed_seen = append_feed_log(songs, feed_seen)
+
     # The feed is a short rolling window: a few recently-played tracks, the one
     # currently playing, and a couple of upcoming ones. Matching only "upcoming"
     # is fragile — a track can slip from upcoming past playing to played between
@@ -163,14 +217,13 @@ def main():
     # is playing or just after it played.
 
     if VERBOSE:
-        present = any(ARTIST_TO_WATCH in (s.get("name") or "").upper()
-                      for s in songs)
+        present = any(WATCH_NORM in norm_name(s.get("name")) for s in songs)
         log_event("run", feed=len(songs), watched_present=present)
 
     new_alerts = 0
     for song in songs:
-        artist = (song.get("name") or "").upper()
-        if ARTIST_TO_WATCH not in artist:
+        # Normalized match — insensitive to spaces/punctuation/case.
+        if WATCH_NORM not in norm_name(song.get("name")):
             continue
 
         song_id = str(song.get("id"))
@@ -214,6 +267,7 @@ def main():
 
     # Keep the newest IDs only.
     state["notified_ids"] = list(notified)[-MAX_REMEMBERED:]
+    state["feed_seen_ids"] = list(feed_seen)[-MAX_FEED_SEEN:]
     save_state(state)
     return 0
 
