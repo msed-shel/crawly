@@ -36,9 +36,10 @@ jobs:
 
       - name: Persist state and log
         run: |
-          # Stage only files that exist (events.log may not exist yet).
+          # Stage only files that exist (logs may not exist yet).
           git add notified.json || true
           [ -f events.log ] && git add events.log || true
+          [ -f feed.log ] && git add feed.log || true
           if git diff --cached --quiet; then
             echo "No state or log change to commit."
           else
