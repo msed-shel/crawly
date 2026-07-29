@@ -133,3 +133,4 @@
 {"ts": "2026-07-29T05:51:30Z", "event": "fetch_error", "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1000)>"}
 {"ts": "2026-07-29T05:54:26Z", "event": "fetch_error", "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1000)>"}
 {"ts": "2026-07-29T05:57:17Z", "event": "fetch_error", "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1000)>"}
+{"ts": "2026-07-29T06:01:16Z", "event": "fetch_error", "error": "<urlopen error _ssl.c:983: The handshake operation timed out>"}
