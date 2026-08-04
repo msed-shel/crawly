@@ -11,7 +11,9 @@ is persisted to notified.json, which the workflow commits back after each run.
 
 import json
 import os
+import ssl
 import sys
+import time
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone
@@ -56,6 +58,18 @@ VERBOSE = os.environ.get("MONITOR_VERBOSE", "").lower() in ("1", "true", "yes")
 # permanently in code, change the default below from "1" to "0".
 FEED_LOG_ENABLED = os.environ.get("MONITOR_FEED_LOG", "1").lower() \
     not in ("0", "false", "no", "off")
+
+# Skip TLS cert verification for the meta-API fetch (their cert keeps expiring).
+# ON by default; set MONITOR_INSECURE_SSL=0 to re-enable strict verification.
+INSECURE_SSL = os.environ.get("MONITOR_INSECURE_SSL", "1").lower() \
+    not in ("0", "false", "no", "off")
+
+# One alert per airing. A song's id is per-SONG (identical every time it plays),
+# so we dedup on the ARTIST with a cooldown instead of the id: after alerting we
+# suppress repeats for this many minutes (long enough to cover the ~25 min a
+# track lingers across the feed's upcoming/playing/played window), then a later
+# play of the band alerts again. Override via env MONITOR_COOLDOWN_MIN.
+COOLDOWN_MIN = int(os.environ.get("MONITOR_COOLDOWN_MIN", "60"))
 
 
 def log_event(event, **fields):
@@ -123,7 +137,16 @@ def save_state(state):
 
 def fetch_json(url):
     req = urllib.request.Request(url, headers={"User-Agent": "radio886-monitor/1.0"})
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+    # The station periodically lets the meta-API TLS certificate expire. Since
+    # this is a read-only public endpoint, optionally skip cert verification for
+    # THIS request only (ntfy calls below still verify normally). Turn strict
+    # checking back on by setting env MONITOR_INSECURE_SSL=0 once they renew.
+    ctx = None
+    if INSECURE_SSL:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    with urllib.request.urlopen(req, timeout=TIMEOUT, context=ctx) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
@@ -199,8 +222,9 @@ def send_ntfy(message):
 
 def main():
     state = load_state()
-    notified = set(state.get("notified_ids", []))
+    alerts = dict(state.get("artist_alerts", {}))   # normalized artist -> last alert epoch
     feed_seen = set(state.get("feed_seen_ids", []))
+    now = time.time()
 
     try:
         data = fetch_json(API_URL)
@@ -234,7 +258,10 @@ def main():
             continue
 
         song_id = str(song.get("id"))
-        if song_id in notified:
+        # Dedup by artist + cooldown (NOT by song id — see COOLDOWN_MIN note).
+        artist_key = norm_name(song.get("name"))
+        last = alerts.get(artist_key)
+        if last is not None and (now - last) < COOLDOWN_MIN * 60:
             continue
 
         if song.get("is_playing"):
@@ -261,19 +288,20 @@ def main():
                   scheduled_time=song.get("scheduled_time"))
         try:
             send_ntfy(message)
-            notified.add(song_id)
+            alerts[artist_key] = now      # start the cooldown for this artist
             new_alerts += 1
             # "the push went out" marker — its absence after a match = ntfy issue.
             log_event("notified", id=song_id, title=song.get("title"))
         except (urllib.error.URLError, TimeoutError) as e:
-            # Not added to notified, so the next run will retry the alert.
+            # Cooldown not started, so the next run will retry the alert.
             log_event("ntfy_error", id=song_id, error=str(e))
 
     if new_alerts == 0:
-        print(f"No new upcoming {ARTIST_TO_WATCH} tracks found.")
+        print(f"No new {ARTIST_TO_WATCH} plays to alert (in cooldown or not in feed).")
 
-    # Keep the newest IDs only.
-    state["notified_ids"] = list(notified)[-MAX_REMEMBERED:]
+    # Persist: drop stale cooldown entries; keep the feed-seen set bounded.
+    cutoff = now - 30 * 86400
+    state["artist_alerts"] = {k: v for k, v in alerts.items() if v >= cutoff}
     state["feed_seen_ids"] = list(feed_seen)[-MAX_FEED_SEEN:]
     save_state(state)
     return 0
