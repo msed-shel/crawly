@@ -186,3 +186,5 @@
 {"ts": "2026-07-29T23:46:57Z", "event": "fetch_error", "error": "<urlopen error timed out>"}
 {"ts": "2026-08-07T05:00:50Z", "event": "match", "id": "2400920", "artist": "EMBERS COLLIDE", "title": "QUEEN OF ICE", "scheduled_time": "07:12:23"}
 {"ts": "2026-08-07T05:00:50Z", "event": "notified", "id": "2400920", "title": "QUEEN OF ICE"}
+{"ts": "2026-08-08T19:24:18Z", "event": "match", "id": "2400920", "artist": "EMBERS COLLIDE", "title": "QUEEN OF ICE", "scheduled_time": "21:32:12"}
+{"ts": "2026-08-08T19:24:18Z", "event": "notified", "id": "2400920", "title": "QUEEN OF ICE"}
