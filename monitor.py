@@ -24,7 +24,7 @@ from pathlib import Path
 # back to "https://ntfy.sh/radio-alerts-886-emberscollide" once it's confirmed
 # working (or set the NTFY_URL / ARTIST_TO_WATCH repo secrets, which override).
 API_URL = os.environ.get("API_URL", "https://meta.radio886.at/886/0")
-NTFY_URL = os.environ.get("NTFY_URL", "https://ntfy.sh/radio_886_test")
+NTFY_URL = os.environ.get("NTFY_URL", "https://ntfy.sh/radio-alerts-886-emberscollide")
 ARTIST_TO_WATCH = os.environ.get("ARTIST_TO_WATCH", "EMBERS COLLIDE").upper()
 
 
