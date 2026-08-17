@@ -194,3 +194,5 @@
 {"ts": "2026-08-13T23:27:12Z", "event": "notified", "id": "2400920", "title": "QUEEN OF ICE"}
 {"ts": "2026-08-14T15:30:41Z", "event": "match", "id": "2400920", "artist": "EMBERS COLLIDE", "title": "QUEEN OF ICE", "scheduled_time": "17:36:57"}
 {"ts": "2026-08-14T15:30:41Z", "event": "notified", "id": "2400920", "title": "QUEEN OF ICE"}
+{"ts": "2026-08-17T06:12:14Z", "event": "match", "id": "3002998", "artist": "EMBERS COLLIDE", "title": "LIKE INK ON SKIN", "scheduled_time": "08:16:43"}
+{"ts": "2026-08-17T06:12:14Z", "event": "notified", "id": "3002998", "title": "LIKE INK ON SKIN"}
