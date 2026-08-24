@@ -200,3 +200,5 @@
 {"ts": "2026-08-21T11:30:39Z", "event": "notified", "id": "3002998", "title": "LIKE INK ON SKIN"}
 {"ts": "2026-08-24T11:59:41Z", "event": "fetch_error", "error": "<urlopen error _ssl.c:983: The handshake operation timed out>"}
 {"ts": "2026-08-24T15:57:33Z", "event": "fetch_error", "error": "<urlopen error _ssl.c:983: The handshake operation timed out>"}
+{"ts": "2026-08-24T16:36:14Z", "event": "match", "id": "3002998", "artist": "EMBERS COLLIDE", "title": "LIKE INK ON SKIN", "scheduled_time": "18:34:28"}
+{"ts": "2026-08-24T16:36:14Z", "event": "notified", "id": "3002998", "title": "LIKE INK ON SKIN"}
