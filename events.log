@@ -235,3 +235,5 @@
 {"ts": "2026-08-28T09:48:33Z", "event": "fetch_error", "error": "<urlopen error _ssl.c:983: The handshake operation timed out>"}
 {"ts": "2026-08-28T09:51:26Z", "event": "match", "id": "2400920", "artist": "EMBERS COLLIDE", "title": "QUEEN OF ICE", "scheduled_time": "11:39:11"}
 {"ts": "2026-08-28T09:51:26Z", "event": "notified", "id": "2400920", "title": "QUEEN OF ICE"}
+{"ts": "2026-08-29T03:39:11Z", "event": "match", "id": "2400920", "artist": "EMBERS COLLIDE", "title": "QUEEN OF ICE", "scheduled_time": "05:36:37"}
+{"ts": "2026-08-29T03:39:12Z", "event": "notified", "id": "2400920", "title": "QUEEN OF ICE"}
