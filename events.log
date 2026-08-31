@@ -238,3 +238,4 @@
 {"ts": "2026-08-29T03:39:11Z", "event": "match", "id": "2400920", "artist": "EMBERS COLLIDE", "title": "QUEEN OF ICE", "scheduled_time": "05:36:37"}
 {"ts": "2026-08-29T03:39:12Z", "event": "notified", "id": "2400920", "title": "QUEEN OF ICE"}
 {"ts": "2026-08-31T06:03:32Z", "event": "fetch_error", "error": "<urlopen error _ssl.c:983: The handshake operation timed out>"}
+{"ts": "2026-08-31T06:24:34Z", "event": "fetch_error", "error": "<urlopen error _ssl.c:983: The handshake operation timed out>"}
