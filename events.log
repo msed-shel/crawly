@@ -249,3 +249,4 @@
 {"ts": "2026-08-31T11:18:32Z", "event": "fetch_error", "error": "<urlopen error _ssl.c:983: The handshake operation timed out>"}
 {"ts": "2026-08-31T12:15:47Z", "event": "fetch_error", "error": "<urlopen error _ssl.c:983: The handshake operation timed out>"}
 {"ts": "2026-09-01T09:06:44Z", "event": "fetch_error", "error": "<urlopen error _ssl.c:983: The handshake operation timed out>"}
+{"ts": "2026-09-01T09:21:21Z", "event": "fetch_error", "error": "<urlopen error [Errno 104] Connection reset by peer>"}
